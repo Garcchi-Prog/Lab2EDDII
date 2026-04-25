@@ -1,9 +1,11 @@
+from models.graph import Graph
+
 import math
-import heapq
+
 
 # Fórmula de Haversine para calcular distancia entre dos coordenadas geográficas
 # Investigamos que esta es la fórmula estándar para distancias en la Tierra
-def haversine(lat1, lon1, lat2, lon2):
+def Haversine(lat1, lon1, lat2, lon2):
     # Radio de la Tierra en kilómetros
     R = 6371.0
     
