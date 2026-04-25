@@ -57,3 +57,5 @@ class Graph:
             if self.adyacencia[id][i] is not None:
                 vecinos.append((self.vertices[i], self.adyacencia[id][i]))
         return vecinos
+
+    
