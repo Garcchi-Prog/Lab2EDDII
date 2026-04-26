@@ -2,80 +2,75 @@ import csv
 from models.airport import Airport
 from models.graph import Graph
 
-# Ruta del archivo CSV con los datos de vuelos
-# La definimos como constante global para poder cambiarla facilmente
-# sin tener que buscarla dentro del codigo
+# Ruta por defecto del dataset
 CSV_PATH = "data/flights_final.csv"
 
-def cargar_grafo(csv_path=CSV_PATH):
+
+class FlightLoader:
     """
-    Leemos el archivo CSV de vuelos y construimos el grafo de aeropuertos.
-    Hacemos dos pasadas sobre los datos:
-      - Primer recorrido: registramos todos los aeropuertos unicos como vertices
-      - Segundo recorrido: conectamos los aeropuertos con aristas ponderadas por distancia
-    Retornamos el grafo ya construido y listo para usar.
+    Lee el archivo CSV de vuelos y construye el grafo de aeropuertos.
+
+    Hace dos pasadas sobre los datos:
+      - Primera:  registra todos los aeropuertos únicos como vértices.
+      - Segunda:  conecta los aeropuertos con aristas ponderadas por distancia.
     """
-    grafo = Graph()
 
-    # Usamos un conjunto para rastrear que codigos ya agregamos como vertice
-    # Esto nos permite verificar duplicados en O(1) sin recorrer el grafo
-    codigos_agregados = set()
+    def cargar(self, ruta=CSV_PATH):
+        """
+        Carga el CSV y retorna (exito, grafo, mensaje).
 
-    # Abrimos el archivo y cargamos todas las filas en memoria
-    # Lo hacemos asi para poder hacer dos pasadas sin releer el archivo del disco
-    with open(csv_path, newline='', encoding='utf-8') as archivo:
-        lector = csv.reader(archivo)
-        next(lector)  # Saltamos el encabezado (primera fila con nombres de columnas)
-        filas = list(lector)
+        Parámetros:
+            ruta: ruta al archivo flights_final.csv
 
-    # Primer recorrido: agregamos todos los vertices unicos
+        Retorna:
+            (True, Graph, str_info)  si se cargó correctamente.
+            (False, None, str_error) si ocurrió un error.
+        """
+        grafo = Graph()
+        aeropuertos = {}  # code -> Airport  (para evitar duplicados en O(1))
 
-    # Recorremos cada fila y extraemos los datos de origen y destino
-    # Solo agregamos un aeropuerto si su codigo no lo hemos visto antes
-    for fila in filas:
-        # Los indices corresponden al orden de columnas del CSV:
-        # 0: Source Code, 1: Source Name, 2: Source City,    3: Source Country
-        # 4: Source Lat,  5: Source Lon,  6: Dest Code,      7: Dest Name
-        # 8: Dest City,   9: Dest Country, 10: Dest Lat,     11: Dest Lon
+        try:
+            with open(ruta, newline='', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for fila in reader:
+                    # ---- Aeropuerto origen ----
+                    cs = fila['Source Airport Code'].strip()
+                    if cs and cs not in aeropuertos:
+                        a = Airport(
+                            cs,
+                            fila['Source Airport Name'].strip(),
+                            fila['Source Airport City'].strip(),
+                            fila['Source Airport Country'].strip(),
+                            fila['Source Airport Latitude'].strip() or '0',
+                            fila['Source Airport Longitude'].strip() or '0',
+                        )
+                        aeropuertos[cs] = a
+                        grafo.agregar_vertice(a)
 
-        code_src = fila[0].strip()
-        if code_src not in codigos_agregados:
-            aeropuerto_origen = Airport(
-                code    = code_src,
-                name    = fila[1].strip(),
-                city    = fila[2].strip(),
-                country = fila[3].strip(),
-                lat     = float(fila[4]),
-                lon     = float(fila[5])
-            )
-            grafo.agregar_vertice(aeropuerto_origen)
-            codigos_agregados.add(code_src)
+                    # ---- Aeropuerto destino ----
+                    cd = fila['Destination Airport Code'].strip()
+                    if cd and cd not in aeropuertos:
+                        a = Airport(
+                            cd,
+                            fila['Destination Airport Name'].strip(),
+                            fila['Destination Airport City'].strip(),
+                            fila['Destination Airport Country'].strip(),
+                            fila['Destination Airport Latitude'].strip() or '0',
+                            fila['Destination Airport Longitude'].strip() or '0',
+                        )
+                        aeropuertos[cd] = a
+                        grafo.agregar_vertice(a)
 
-        code_dst = fila[6].strip()
-        if code_dst not in codigos_agregados:
-            aeropuerto_destino = Airport(
-                code    = code_dst,
-                name    = fila[7].strip(),
-                city    = fila[8].strip(),
-                country = fila[9].strip(),
-                lat     = float(fila[10]),
-                lon     = float(fila[11])
-            )
-            grafo.agregar_vertice(aeropuerto_destino)
-            codigos_agregados.add(code_dst)
+                    # ---- Arista ----
+                    if cs and cd:
+                        grafo.agregar_arista(cs, cd)
 
-    print(f"[INFO] Vertices cargados: {len(grafo.vertices)} aeropuertos unicos")
+            msg = (f"Dataset cargado: {grafo.num_vertices()} aeropuertos, "
+                   f"{grafo.num_aristas()} rutas")
+            print(f"[INFO] {msg}")
+            return True, grafo, msg
 
-    # Segundo recorrido: Agregamos todas las aristas
-    
-    # Hacemos esta pasada despues de tener todos los vertices cargados
-    # para garantizar que agregar_arista siempre encuentre ambos extremos
-    # El metodo agregar_arista ya ignora conexiones duplicadas internamente
-    for fila in filas:
-        code_src = fila[0].strip()
-        code_dst = fila[6].strip()
-        grafo.agregar_arista(code_src, code_dst)
-
-    print(f"[INFO] Grafo construido exitosamente.")
-
-    return grafo
+        except Exception as e:
+            msg = f"Error al cargar '{ruta}': {e}"
+            print(f"[ERROR] {msg}")
+            return False, None, msg
