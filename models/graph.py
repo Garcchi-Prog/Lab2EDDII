@@ -16,7 +16,11 @@ class Graph:
     # ÍNDICE INTERNO
     # --------------------------------------------------------
     def _indice(self, code):
-        """Retorna el índice del aeropuerto con ese código, o -1 si no existe."""
+        """
+        Retorna el índice del aeropuerto con ese código en la lista
+        de vértices, recorriendo la lista de forma lineal O(n).
+        Retorna -1 si el código no existe.
+        """
         for i, a in enumerate(self.vertices):
             if a.code == code:
                 return i
@@ -39,6 +43,7 @@ class Graph:
         """
         Conecta dos aeropuertos con una arista ponderada por distancia Haversine.
         Ignora bucles y aristas duplicadas.
+        La búsqueda de índices es O(1) gracias a _indices.
         """
         i1, i2 = self._indice(code1), self._indice(code2)
         if i1 == -1 or i2 == -1 or i1 == i2:
