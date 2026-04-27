@@ -4,6 +4,9 @@ Lab2.py
 Punto de entrada del Laboratorio 2 - Estructura de Datos II
 Universidad del Norte
 
+Antes de ejecutar, instalar la librería del mapa:
+    pip install tkintermapview
+
 Ejecutar:
     python Lab2.py
 """
@@ -11,14 +14,19 @@ Ejecutar:
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext
 import os
-import math
-import random
 import datetime
 
+# Intentamos importar tkintermapview; si no está, avisamos al usuario
+try:
+    import tkintermapview
+    MAPA_DISPONIBLE = True
+except ImportError:
+    MAPA_DISPONIBLE = False
+
 # ── Módulos propios ───────────────────────────────────────────────────────────
-from models.graph           import Graph
+from models.graph            import Graph
 from models.grafo_analizador import GrafoAnalizador
-from models.Importcsv       import FlightLoader
+from models.Importcsv        import FlightLoader
 
 # ============================================================
 # PALETA DE COLORES
@@ -36,176 +44,180 @@ COLOR_TEXTO_SEC = "#bdc3c7"
 
 
 # ============================================================
-# VISUALIZADOR DEL GRAFO (Canvas)
+# VISUALIZADOR DE MAPA
 # ============================================================
-class VisualizadorGrafo(tk.Canvas):
+class VisualizadorMapa(tk.Frame):
     """
-    Dibuja el grafo como un diagrama circular.
-    Muestra una componente a la vez para no saturar la pantalla.
-    Soporta arrastre con el mouse.
+    Muestra los aeropuertos sobre un mapa real usando tkintermapview.
+    Permite marcar aeropuertos individuales y trazar rutas (camino mínimo).
     """
 
     def __init__(self, parent, **kwargs):
-        super().__init__(parent, bg="white", highlightthickness=1, **kwargs)
-        self.grafo          = None
-        self.nodo_resaltado = None
-        self.posiciones     = {}
-        self.config(scrollregion=(0, 0, 2000, 2000))
-        self.bind("<ButtonPress-1>", self._iniciar_drag)
-        self.bind("<B1-Motion>",     self._drag)
-        self._drag_inicio = None
+        super().__init__(parent, bg="black", **kwargs)
 
-    def _iniciar_drag(self, event):
-        self._drag_inicio = (event.x, event.y)
+        self.grafo = None
+        # Guardamos referencias a los markers y paths para poder borrarlos
+        self._markers = []
+        self._paths   = []
 
-    def _drag(self, event):
-        if self._drag_inicio:
-            dx = event.x - self._drag_inicio[0]
-            dy = event.y - self._drag_inicio[1]
-            self.xview_scroll(-dx // 5, "units")
-            self.yview_scroll(-dy // 5, "units")
-            self._drag_inicio = (event.x, event.y)
-
-    def dibujar_subgrafo(self, grafo, nodos_a_mostrar, nodo_resaltado=None, max_nodos=80):
-        """
-        Dibuja hasta max_nodos nodos del grafo en disposición circular.
-        Resalta el nodo indicado en nodo_resaltado si se provee.
-        """
-        self.delete("all")
-        self.grafo          = grafo
-        self.nodo_resaltado = nodo_resaltado
-        self.posiciones     = {}
-
-        if not nodos_a_mostrar:
-            self.create_text(400, 300, text="Sin nodos para mostrar",
-                             font=("Arial", 14), fill="#555")
+        if not MAPA_DISPONIBLE:
+            # Si no está instalada la librería mostramos un mensaje claro
+            tk.Label(
+                self,
+                text=(
+                    "⚠  tkintermapview no está instalado.\n\n"
+                    "Instálalo con:\n"
+                    "    pip install tkintermapview\n\n"
+                    "Luego reinicia la aplicación."
+                ),
+                bg="black", fg=COLOR_ALERTA,
+                font=("Arial", 13), justify="center"
+            ).pack(expand=True)
+            self.widget_mapa = None
             return
 
-        muestra = nodos_a_mostrar[:max_nodos]
-        n       = len(muestra)
-        cx, cy  = 600, 500
-        radio   = min(400, 60 * n // 6 + 150)
+        # Widget del mapa
+        self.widget_mapa = tkintermapview.TkinterMapView(
+            self, corner_radius=0
+        )
+        self.widget_mapa.pack(fill="both", expand=True)
 
-        # Posiciones en círculo
-        for i, code in enumerate(muestra):
-            angulo = 2 * math.pi * i / n
-            self.posiciones[code] = (
-                cx + radio * math.cos(angulo),
-                cy + radio * math.sin(angulo)
-            )
+        # Punto de partida: centro del mundo
+        self.widget_mapa.set_position(20, 0)
+        self.widget_mapa.set_zoom(2)
 
-        # Aristas
-        for code in muestra:
-            x1, y1 = self.posiciones[code]
-            for vecino, _ in grafo.obtener_vecinos(code):
-                if vecino.code in self.posiciones and vecino.code > code:
-                    x2, y2 = self.posiciones[vecino.code]
-                    self.create_line(x1, y1, x2, y2, fill="#b0bec5", width=1)
+    # ──────────────────────────────────────────────────────────────────────────
+    # Métodos de dibujo
+    # ──────────────────────────────────────────────────────────────────────────
 
-        # Nodos
-        r = 18
-        for code in muestra:
-            x, y = self.posiciones[code]
-            if code == nodo_resaltado:
-                fill, outline = "#fff3cd", COLOR_ALERTA
-            else:
-                grado = grafo.grado(code)
-                if grado >= 20:
-                    fill, outline = "#d5f4e6", COLOR_EXITO
-                elif grado >= 5:
-                    fill, outline = "#d6eaf8", COLOR_BOTON
-                else:
-                    fill, outline = "#f2f3f4", COLOR_BORDE
+    def limpiar(self):
+        """Borra todos los marcadores y rutas del mapa."""
+        if not MAPA_DISPONIBLE or self.widget_mapa is None:
+            return
+        for m in self._markers:
+            m.delete()
+        for p in self._paths:
+            p.delete()
+        self._markers.clear()
+        self._paths.clear()
 
-            self.create_oval(x-r, y-r, x+r, y+r,
-                             fill=fill, outline=outline, width=2)
-            self.create_text(x, y, text=code[:4],
-                             font=("Arial", 7, "bold"), fill="#2c3e50")
-
-        self._dibujar_leyenda(n, len(nodos_a_mostrar))
-
-    def dibujar_camino(self, grafo, camino, max_nodos=80):
+    def mostrar_aeropuertos(self, aeropuertos, resaltar=None):
         """
-        Resalta el camino mínimo sobre el grafo.
-        - Verde: origen, Rojo: destino, Naranja: intermedios.
-        - Aristas del camino en rojo con flecha.
+        Pone un pin en el mapa por cada aeropuerto de la lista.
+        Si resaltar es un código IATA, ese pin se muestra de otro color.
+
+        aeropuertos: lista de objetos Airport
+        resaltar:    código IATA (str) o None
         """
-        if not camino:
+        if not MAPA_DISPONIBLE or self.widget_mapa is None:
             return
 
-        camino_set    = set(camino)
-        vecinos_extra = []
-        for code in camino:
-            for v, _ in grafo.obtener_vecinos(code):
-                if v.code not in camino_set:
-                    vecinos_extra.append(v.code)
+        self.limpiar()
 
-        todos = camino + [c for c in vecinos_extra if c not in camino_set][: max_nodos - len(camino)]
-        self.dibujar_subgrafo(grafo, todos, max_nodos=max_nodos)
+        # Para no congelar la app con miles de pins, limitamos a 300 por defecto.
+        # El enunciado pide mostrar la geolocalización, no dibujar cada arista.
+        muestra = aeropuertos[:300]
 
-        r = 18
-        for i, code in enumerate(camino):
-            if code not in self.posiciones:
+        for a in muestra:
+            # Saltamos aeropuertos con coordenadas inválidas (0, 0)
+            if a.lat == 0.0 and a.lon == 0.0:
                 continue
-            x, y = self.posiciones[code]
-            if i == 0:
-                fill, outline, lw = "#27ae60", "#1a7a44", 3
-            elif i == len(camino) - 1:
-                fill, outline, lw = "#e74c3c", "#922b21", 3
+
+            texto_popup = f"{a.code} — {a.name}\n{a.city}, {a.country}"
+
+            if a.code == resaltar:
+                # Pin amarillo para el aeropuerto seleccionado
+                marker = self.widget_mapa.set_marker(
+                    a.lat, a.lon,
+                    text=a.code,
+                    marker_color_circle="#f39c12",
+                    marker_color_outside="#d68910",
+                    text_color="#2c3e50",
+                    font=("Arial", 9, "bold"),
+                    command=lambda m, info=texto_popup: messagebox.showinfo("Aeropuerto", info)
+                )
             else:
-                fill, outline, lw = "#f39c12", "#d68910", 2
+                marker = self.widget_mapa.set_marker(
+                    a.lat, a.lon,
+                    text=a.code,
+                    marker_color_circle="#3498db",
+                    marker_color_outside="#1a6fa8",
+                    text_color="white",
+                    font=("Arial", 8),
+                    command=lambda m, info=texto_popup: messagebox.showinfo("Aeropuerto", info)
+                )
+            self._markers.append(marker)
 
-            self.create_oval(x - r, y - r, x + r, y + r,
-                             fill=fill, outline=outline, width=lw)
-            self.create_text(x, y, text=code[:4],
-                             font=("Arial", 7, "bold"), fill="white")
+        # Si hay un aeropuerto resaltado, centramos el mapa en él
+        if resaltar and self.grafo:
+            a = self.grafo.airport_by_code(resaltar)
+            if a and not (a.lat == 0 and a.lon == 0):
+                self.widget_mapa.set_position(a.lat, a.lon)
+                self.widget_mapa.set_zoom(5)
 
-        for i in range(len(camino) - 1):
-            c1, c2 = camino[i], camino[i + 1]
-            if c1 in self.posiciones and c2 in self.posiciones:
-                x1, y1 = self.posiciones[c1]
-                x2, y2 = self.posiciones[c2]
-                self.create_line(x1, y1, x2, y2,
-                                 fill=COLOR_ERROR, width=3, arrow=tk.LAST,
-                                 arrowshape=(10, 12, 4))
+    def mostrar_camino(self, grafo, camino):
+        """
+        Dibuja el camino mínimo sobre el mapa.
+        - Pin verde: origen
+        - Pin rojo:  destino
+        - Pin naranja: escalas intermedias
+        - Línea azul conectando todos los puntos
+        """
+        if not MAPA_DISPONIBLE or self.widget_mapa is None:
+            return
 
-        self._dibujar_leyenda_camino(len(camino))
+        self.limpiar()
 
-    def _dibujar_leyenda_camino(self, n_pasos):
-        self.create_rectangle(10, 10, 260, 115, fill=COLOR_PANEL, outline=COLOR_BORDE)
-        self.create_text(135, 25, text="Camino Mínimo",
-                         fill=COLOR_TEXTO, font=("Arial", 9, "bold"))
-        items = [
-            ("#27ae60", "Origen"),
-            (COLOR_ERROR,  "Destino"),
-            (COLOR_ALERTA, "Intermedios"),
-            (COLOR_BORDE,  "Otros nodos"),
-        ]
-        for i, (color, texto) in enumerate(items):
-            y = 38 + i * 14
-            self.create_rectangle(18, y - 5, 28, y + 5, fill=color, outline=color)
-            self.create_text(140, y, text=texto, fill=COLOR_TEXTO, font=("Arial", 8))
-        self.create_text(135, 112, fill=COLOR_EXITO, font=("Arial", 8),
-                         text=f"Camino: {n_pasos} aeropuertos  ({n_pasos - 1} vuelos)")
+        coordenadas = []
 
+        for i, code in enumerate(camino):
+            a = grafo.airport_by_code(code)
+            if not a or (a.lat == 0 and a.lon == 0):
+                continue
 
-    def _dibujar_leyenda(self, mostrados, total):
-        self.create_rectangle(10, 10, 260, 100, fill=COLOR_PANEL, outline=COLOR_BORDE)
-        self.create_text(135, 25, text="Leyenda de nodos",
-                         fill=COLOR_TEXTO, font=("Arial", 9, "bold"))
-        items = [
-            (COLOR_EXITO,  "Hub  (≥20 rutas)"),
-            (COLOR_BOTON,  "Regional (5-19 rutas)"),
-            (COLOR_BORDE,  "Local (<5 rutas)"),
-            (COLOR_ALERTA, "Seleccionado"),
-        ]
-        for i, (color, texto) in enumerate(items):
-            y = 38 + i * 14
-            self.create_rectangle(18, y-5, 28, y+5, fill=color, outline=color)
-            self.create_text(140, y, text=texto, fill=COLOR_TEXTO, font=("Arial", 8))
-        if mostrados < total:
-            self.create_text(135, 107, fill=COLOR_ALERTA, font=("Arial", 8),
-                             text=f"Mostrando {mostrados} de {total} nodos")
+            coordenadas.append((a.lat, a.lon))
+            texto_popup = f"{a.code} — {a.name}\n{a.city}, {a.country}"
+
+            if i == 0:
+                color_circulo  = "#27ae60"
+                color_exterior = "#1a7a44"
+                etiqueta = f"✈ {a.code}"
+            elif i == len(camino) - 1:
+                color_circulo  = "#e74c3c"
+                color_exterior = "#922b21"
+                etiqueta = f"🏁 {a.code}"
+            else:
+                color_circulo  = "#f39c12"
+                color_exterior = "#d68910"
+                etiqueta = f"{i}. {a.code}"
+
+            marker = self.widget_mapa.set_marker(
+                a.lat, a.lon,
+                text=etiqueta,
+                marker_color_circle=color_circulo,
+                marker_color_outside=color_exterior,
+                text_color="white",
+                font=("Arial", 9, "bold"),
+                command=lambda m, info=texto_popup: messagebox.showinfo("Aeropuerto", info)
+            )
+            self._markers.append(marker)
+
+        # Trazamos la polyline del recorrido si hay al menos 2 puntos
+        if len(coordenadas) >= 2:
+            path = self.widget_mapa.set_path(
+                coordenadas,
+                color="#3498db",
+                width=3
+            )
+            self._paths.append(path)
+
+            # Ajustamos la vista para que se vea todo el camino
+            lats = [c[0] for c in coordenadas]
+            lons = [c[1] for c in coordenadas]
+            lat_centro = (max(lats) + min(lats)) / 2
+            lon_centro = (max(lons) + min(lons)) / 2
+            self.widget_mapa.set_position(lat_centro, lon_centro)
+            self.widget_mapa.set_zoom(3)
 
 
 # ============================================================
@@ -362,7 +374,6 @@ class VentanaMST(tk.Toplevel):
                   bg=COLOR_BOTON, fg="white", width=15).pack(pady=8)
 
 
-
 # ============================================================
 # VENTANA: VÉRTICE 1 — INFO + TOP 10 CAMINOS MÁS LARGOS
 # ============================================================
@@ -380,7 +391,6 @@ class VentanaVertice1(tk.Toplevel):
         self.configure(bg=COLOR_PANEL)
         self.resizable(True, True)
 
-        # ── Título ──────────────────────────────────────────────────────────
         tk.Label(self,
                  text=f"Aeropuerto seleccionado: {airport.code}",
                  font=("Arial", 13, "bold"),
@@ -389,7 +399,7 @@ class VentanaVertice1(tk.Toplevel):
         notebook = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True, padx=12, pady=6)
 
-        # ── Pestaña 1: Información del aeropuerto ───────────────────────────
+        # Pestaña 1: Información del aeropuerto
         tab_info = tk.Frame(notebook, bg=COLOR_TARJETA)
         notebook.add(tab_info, text="Información del Aeropuerto")
 
@@ -413,7 +423,7 @@ class VentanaVertice1(tk.Toplevel):
                      bg=bg, fg=COLOR_TEXTO,
                      font=("Arial", 10, "bold")).pack(side="left", padx=8, pady=5)
 
-        # ── Pestaña 2: Top 10 caminos más largos ────────────────────────────
+        # Pestaña 2: Top 10 caminos más largos
         tab_top = tk.Frame(notebook, bg=COLOR_TARJETA)
         notebook.add(tab_top, text="Top 10 — Caminos más largos")
 
@@ -422,7 +432,6 @@ class VentanaVertice1(tk.Toplevel):
                  bg=COLOR_TARJETA, fg=COLOR_ALERTA,
                  font=("Arial", 9, "bold")).pack(anchor="w", padx=10, pady=(8, 4))
 
-        # Filtramos los 10 destinos alcanzables con mayor distancia
         alcanzables = [
             (dist, code)
             for code, dist in distancias.items()
@@ -485,7 +494,6 @@ class VentanaCamino(tk.Toplevel):
         self.geometry("660x480")
         self.configure(bg=COLOR_PANEL)
 
-        # ── Encabezado ──────────────────────────────────────────────────────
         origen  = grafo.airport_by_code(camino[0])
         destino = grafo.airport_by_code(camino[-1])
 
@@ -501,13 +509,12 @@ class VentanaCamino(tk.Toplevel):
         resumen = tk.Frame(self, bg=COLOR_TARJETA)
         resumen.pack(fill="x", padx=15, pady=5)
         tk.Label(resumen,
-                 text=f"Distancia total: {distancia_total:,.1f} km   |   "
-                      f"Escalas: {len(camino) - 2}   |   "
-                      f"Aeropuertos: {len(camino)}",
+                 text=(f"Distancia total: {distancia_total:,.1f} km   |   "
+                       f"Escalas: {len(camino) - 2}   |   "
+                       f"Aeropuertos: {len(camino)}"),
                  bg=COLOR_TARJETA, fg=COLOR_EXITO,
                  font=("Arial", 10, "bold")).pack(pady=6)
 
-        # ── Tabla de vértices ────────────────────────────────────────────────
         tk.Label(self, text="Detalle del recorrido:",
                  bg=COLOR_PANEL, fg=COLOR_TEXTO,
                  font=("Arial", 9, "bold")).pack(anchor="w", padx=15)
@@ -552,6 +559,7 @@ class VentanaCamino(tk.Toplevel):
         tk.Button(self, text="Cerrar", command=self.destroy,
                   bg=COLOR_BOTON, fg="white", width=15).pack(pady=8)
 
+
 # ============================================================
 # APLICACIÓN PRINCIPAL
 # ============================================================
@@ -560,7 +568,7 @@ class AplicacionGrafo(tk.Tk):
     Ventana principal del Laboratorio 2.
     Estructura de tres paneles:
       - Izquierdo: controles (cargar CSV, buscar aeropuerto, navegación)
-      - Central:   visualización del grafo (canvas interactivo)
+      - Central:   mapa interactivo con los aeropuertos geolocalizados
       - Derecho:   análisis (conexidad, bipartito, MST) y log
     """
 
@@ -574,16 +582,23 @@ class AplicacionGrafo(tk.Tk):
         self.analizador = GrafoAnalizador()
         self.loader     = FlightLoader()
 
-        # Estado de navegación por componentes
+        # Lista de componentes (para navegación)
         self._componentes = []
         self._comp_idx    = 0
-        self._comp_dict   = {}  # code -> índice de componente
+        self._comp_dict   = {}
 
         self._crear_menu()
         self._crear_panel_izquierdo()
         self._crear_panel_central()
         self._crear_panel_derecho()
         self._log("Sistema iniciado. Cargue el archivo flights_final.csv para comenzar.")
+
+        if not MAPA_DISPONIBLE:
+            self._log(
+                "AVISO: tkintermapview no está instalado. "
+                "Ejecuta: pip install tkintermapview",
+                "alerta"
+            )
 
     # ── Menú ──────────────────────────────────────────────────────────────────
     def _crear_menu(self):
@@ -595,6 +610,12 @@ class AplicacionGrafo(tk.Tk):
         m_arch.add_command(label="Cargar CSV de vuelos", command=self._cargar_csv)
         m_arch.add_separator()
         m_arch.add_command(label="Salir", command=self.quit)
+
+        m_vista = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Vista", menu=m_vista)
+        m_vista.add_command(label="Mostrar todos los aeropuertos en el mapa",
+                            command=self._mostrar_todos_en_mapa)
+        m_vista.add_command(label="Limpiar mapa", command=self._limpiar_mapa)
 
         m_ayuda = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Ayuda", menu=m_ayuda)
@@ -623,37 +644,23 @@ class AplicacionGrafo(tk.Tk):
                  bg=COLOR_PANEL, fg=COLOR_TEXTO).pack(anchor="w", padx=20)
         self.entry_buscar = tk.Entry(panel, width=30)
         self.entry_buscar.pack(pady=5)
-        tk.Button(panel, text="Buscar y Resaltar en Grafo", command=self._buscar_aeropuerto,
+        tk.Button(panel, text="Buscar y Marcar en Mapa", command=self._buscar_aeropuerto,
                   bg=COLOR_EXITO, fg="white", width=28).pack(pady=3)
         tk.Button(panel, text="Ver Info + Top 10 más lejanos",
                   command=self._ver_vertice1,
                   bg=COLOR_ALERTA, fg="white", width=28).pack(pady=3)
 
-        # Navegación de componentes
-        self._seccion(panel, "Componentes Conexas")
-        tk.Label(panel, text="Ver componente #:",
-                 bg=COLOR_PANEL, fg=COLOR_TEXTO).pack(anchor="w", padx=20)
-        frame_nav = tk.Frame(panel, bg=COLOR_PANEL)
-        frame_nav.pack(pady=5)
-        tk.Button(frame_nav, text="◀ Ant.", command=self._comp_anterior,
-                  bg=COLOR_PANEL, fg=COLOR_TEXTO, width=8).pack(side="left", padx=3)
-        self.lbl_comp = tk.Label(frame_nav, text="—", bg=COLOR_PANEL, fg=COLOR_ALERTA,
-                                  font=("Arial", 11, "bold"), width=6)
-        self.lbl_comp.pack(side="left")
-        tk.Button(frame_nav, text="Sig. ▶", command=self._comp_siguiente,
-                  bg=COLOR_PANEL, fg=COLOR_TEXTO, width=8).pack(side="left", padx=3)
-
-        tk.Label(panel, text="O ir a componente #:",
-                 bg=COLOR_PANEL, fg=COLOR_TEXTO_SEC).pack(anchor="w", padx=20, pady=(8, 0))
-        frame_ir = tk.Frame(panel, bg=COLOR_PANEL)
-        frame_ir.pack(pady=3)
-        self.entry_comp = tk.Entry(frame_ir, width=6)
-        self.entry_comp.pack(side="left", padx=5)
-        tk.Button(frame_ir, text="Ir", command=self._ir_a_componente,
-                  bg=COLOR_BOTON, fg="white").pack(side="left")
+        # Mostrar en mapa
+        self._seccion(panel, "Vista del Mapa")
+        tk.Button(panel, text="Mostrar todos en el mapa",
+                  command=self._mostrar_todos_en_mapa,
+                  bg="#9b59b6", fg="white", width=28).pack(pady=3)
+        tk.Button(panel, text="Limpiar mapa",
+                  command=self._limpiar_mapa,
+                  bg=COLOR_BORDE, fg="white", width=28).pack(pady=3)
 
         # Camino mínimo
-        self._seccion(panel, "4. Camino Mínimo (Dijkstra)")
+        self._seccion(panel, "Camino Mínimo (Dijkstra)")
         tk.Label(panel, text="Origen (código IATA):",
                  bg=COLOR_PANEL, fg=COLOR_TEXTO).pack(anchor="w", padx=20)
         self.entry_origen = tk.Entry(panel, width=30)
@@ -662,47 +669,35 @@ class AplicacionGrafo(tk.Tk):
                  bg=COLOR_PANEL, fg=COLOR_TEXTO).pack(anchor="w", padx=20)
         self.entry_destino = tk.Entry(panel, width=30)
         self.entry_destino.pack(pady=3)
-        tk.Button(panel, text="Calcular y Mostrar Camino",
+        tk.Button(panel, text="Calcular y Mostrar en Mapa",
                   command=self._calcular_camino,
                   bg=COLOR_ERROR, fg="white", width=28).pack(pady=5)
 
-        # Visualización rápida
-        self._seccion(panel, "Visualización Rápida")
-        tk.Button(panel, text="Mostrar aeropuertos aleatorios",
-                  command=self._mostrar_aleatorios, bg="#9b59b6", fg="white",
-                  width=28).pack(pady=5)
-        frame_n = tk.Frame(panel, bg=COLOR_PANEL)
-        frame_n.pack(pady=3)
-        tk.Label(frame_n, text="Cantidad:", bg=COLOR_PANEL, fg=COLOR_TEXTO).pack(side="left")
-        self.entry_n = tk.Entry(frame_n, width=6)
-        self.entry_n.insert(0, "40")
-        self.entry_n.pack(side="left", padx=5)
+        # Estadísticas rápidas
+        self._seccion(panel, "Estadísticas")
+        tk.Button(panel, text="Top 10 Hubs (más rutas)",
+                  command=self._top_hubs, bg="#9b59b6", fg="white",
+                  width=28).pack(pady=4)
+        tk.Button(panel, text="Mostrar todos los aeropuertos",
+                  command=self._mostrar_todos, bg="#9b59b6", fg="white",
+                  width=28).pack(pady=4)
 
-    # ── Panel central (canvas) ────────────────────────────────────────────────
+    # ── Panel central (mapa) ──────────────────────────────────────────────────
     def _crear_panel_central(self):
         panel = tk.Frame(self, bg=COLOR_FONDO)
         panel.pack(side="left", fill="both", expand=True, pady=10)
 
         header = tk.Frame(panel, bg=COLOR_FONDO)
         header.pack(fill="x", padx=10, pady=5)
-        tk.Label(header, text="Visualización del Grafo de Vuelos",
+        tk.Label(header, text="Mapa de Rutas Aéreas",
                  font=("Arial", 11, "bold"), bg=COLOR_FONDO, fg=COLOR_TEXTO).pack(side="left")
         self.lbl_contador = tk.Label(header, text="Vértices: 0  |  Aristas: 0",
                                      bg=COLOR_FONDO, fg=COLOR_EXITO)
         self.lbl_contador.pack(side="right")
 
-        frame_canvas = tk.Frame(panel, bg="white")
-        frame_canvas.pack(fill="both", expand=True, padx=10, pady=5)
-
-        self.canvas = VisualizadorGrafo(frame_canvas, width=860, height=640)
-        hbar = ttk.Scrollbar(frame_canvas, orient="horizontal", command=self.canvas.xview)
-        vbar = ttk.Scrollbar(frame_canvas, orient="vertical",   command=self.canvas.yview)
-        self.canvas.configure(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
-        self.canvas.grid(row=0, column=0, sticky="nsew")
-        vbar.grid(row=0, column=1, sticky="ns")
-        hbar.grid(row=1, column=0, sticky="ew")
-        frame_canvas.grid_rowconfigure(0, weight=1)
-        frame_canvas.grid_columnconfigure(0, weight=1)
+        # El mapa ocupa el resto del panel central
+        self.mapa = VisualizadorMapa(panel)
+        self.mapa.pack(fill="both", expand=True, padx=10, pady=5)
 
     # ── Panel derecho ─────────────────────────────────────────────────────────
     def _crear_panel_derecho(self):
@@ -727,16 +722,10 @@ class AplicacionGrafo(tk.Tk):
                   command=self._calcular_mst, bg=COLOR_ALERTA, fg="white",
                   width=32).pack(pady=5)
 
-        self._seccion(panel, "Estadísticas del Grafo")
-        tk.Button(panel, text="Mostrar Top 10 Hubs (más rutas)",
-                  command=self._top_hubs, bg="#9b59b6", fg="white", width=32).pack(pady=4)
-        tk.Button(panel, text="Mostrar todos los aeropuertos",
-                  command=self._mostrar_todos, bg="#9b59b6", fg="white", width=32).pack(pady=4)
-
         self._seccion(panel, "Registro de Operaciones")
-        self.txt_log = scrolledtext.ScrolledText(panel, width=37, height=14,
+        self.txt_log = scrolledtext.ScrolledText(panel, width=37, height=18,
                                                   bg=COLOR_TARJETA, fg=COLOR_TEXTO)
-        self.txt_log.pack(padx=5, pady=5)
+        self.txt_log.pack(padx=5, pady=5, fill="both", expand=True)
         self.txt_log.configure(state="disabled")
 
     # ── Utilidades UI ─────────────────────────────────────────────────────────
@@ -759,26 +748,24 @@ class AplicacionGrafo(tk.Tk):
             text=f"Vértices: {self.grafo.num_vertices()}  |  Aristas: {self.grafo.num_aristas()}"
         )
 
-    def _actualizar_vista(self, nodos=None, resaltar=None):
-        if nodos is None:
-            nodos = self._componentes[self._comp_idx] if self._componentes else [
-                a.code for a in self.grafo.vertices[:80]
-            ]
-        self.canvas.dibujar_subgrafo(self.grafo, nodos, nodo_resaltado=resaltar)
+    # ── Acciones de mapa ──────────────────────────────────────────────────────
+    def _mostrar_todos_en_mapa(self):
+        """Pone un pin por cada aeropuerto del grafo."""
+        if not self.grafo.vertices:
+            self._log("Cargue un dataset primero", "error")
+            return
+        self._log(f"Mostrando {self.grafo.num_vertices()} aeropuertos en el mapa "
+                  f"(máx. 300 pins)...")
+        self.update()
+        self.mapa.grafo = self.grafo
+        self.mapa.mostrar_aeropuertos(self.grafo.vertices)
+        self._log("Mapa actualizado. Haga clic en un pin para ver info.", "exito")
 
-    def _recalcular_componentes(self):
-        """Recalcula las componentes conexas y ordena por tamaño descendente."""
-        grafo_dict = self.grafo.to_dict_grafo()
-        _, _, _, comps = self.analizador.es_conexo(grafo_dict)
-        comps.sort(key=len, reverse=True)
-        self._componentes = comps
-        self._comp_idx    = 0
-        self._comp_dict   = {code: idx
-                             for idx, comp in enumerate(comps)
-                             for code in comp}
-        self.lbl_comp.configure(text=f"1/{len(comps)}")
+    def _limpiar_mapa(self):
+        self.mapa.limpiar()
+        self._log("Mapa limpiado.")
 
-    # ── Acciones ──────────────────────────────────────────────────────────────
+    # ── Acciones principales ──────────────────────────────────────────────────
     def _cargar_csv(self):
         ruta = filedialog.askopenfilename(
             title="Seleccionar flights_final.csv",
@@ -791,12 +778,17 @@ class AplicacionGrafo(tk.Tk):
         exito, grafo, mensaje = self.loader.cargar(ruta)
         if exito:
             self.grafo = grafo
+            self.mapa.grafo = grafo
             self.lbl_dataset.configure(
                 text=f"{os.path.basename(ruta)}\n{mensaje}")
             self._log(mensaje, "exito")
             self._actualizar_contador()
             self._recalcular_componentes()
-            self._actualizar_vista()
+            # Mostramos todos los aeropuertos en el mapa al cargar
+            self._log("Cargando pins en el mapa...")
+            self.update()
+            self.mapa.mostrar_aeropuertos(self.grafo.vertices)
+            self._log("¡Listo! Aeropuertos visibles en el mapa.", "exito")
         else:
             self._log(mensaje, "error")
 
@@ -813,19 +805,8 @@ class AplicacionGrafo(tk.Tk):
             f"Encontrado: {a.name} ({a.city}, {a.country}) — {self.grafo.grado(code)} rutas",
             "exito"
         )
-        idx = self._comp_dict.get(code, 0)
-        self._comp_idx = idx
-        self.lbl_comp.configure(text=f"{idx+1}/{len(self._componentes)}")
-        self._actualizar_vista(nodos=self._componentes[idx], resaltar=code)
-
-    def _ver_info_aeropuerto(self):
-        """Abre la ventana de info básica (usada internamente por otras ventanas)."""
-        code = self.entry_buscar.get().strip().upper()
-        a = self.grafo.airport_by_code(code)
-        if not a:
-            self._log(f"Código '{code}' no encontrado", "error")
-            return
-        VentanaInfoAeropuerto(self, a, self.grafo)
+        # Mostramos todos pero resaltamos el buscado
+        self.mapa.mostrar_aeropuertos(self.grafo.vertices, resaltar=code)
 
     def _ver_vertice1(self):
         """
@@ -855,53 +836,6 @@ class AplicacionGrafo(tk.Tk):
         )
 
         VentanaVertice1(self, self.grafo, a, distancias)
-
-    def _comp_anterior(self):
-        if not self._componentes:
-            return
-        self._comp_idx = (self._comp_idx - 1) % len(self._componentes)
-        self._mostrar_componente_actual()
-
-    def _comp_siguiente(self):
-        if not self._componentes:
-            return
-        self._comp_idx = (self._comp_idx + 1) % len(self._componentes)
-        self._mostrar_componente_actual()
-
-    def _ir_a_componente(self):
-        try:
-            n = int(self.entry_comp.get()) - 1
-            if 0 <= n < len(self._componentes):
-                self._comp_idx = n
-                self._mostrar_componente_actual()
-            else:
-                self._log("Número de componente fuera de rango", "error")
-        except ValueError:
-            self._log("Ingrese un número válido", "error")
-
-    def _mostrar_componente_actual(self):
-        if not self._componentes:
-            return
-        comp  = self._componentes[self._comp_idx]
-        total = len(self._componentes)
-        self.lbl_comp.configure(text=f"{self._comp_idx+1}/{total}")
-        self._log(f"Componente {self._comp_idx+1}/{total} — {len(comp)} aeropuertos")
-        self._actualizar_vista(nodos=comp)
-
-    def _mostrar_aleatorios(self):
-        try:
-            n = int(self.entry_n.get())
-        except ValueError:
-            n = 40
-        if not self.grafo.vertices:
-            self._log("Cargue un dataset primero", "error")
-            return
-        muestra = random.sample(
-            [a.code for a in self.grafo.vertices],
-            min(n, self.grafo.num_vertices())
-        )
-        self._log(f"Mostrando {len(muestra)} aeropuertos aleatorios")
-        self._actualizar_vista(nodos=muestra)
 
     def _analizar_conexidad(self):
         if not self.grafo.vertices:
@@ -974,7 +908,8 @@ class AplicacionGrafo(tk.Tk):
         for a in top:
             self._log(f"  {a.code}: {self.grafo.grado(a.code)} rutas — {a.city}")
         VentanaResultados(self, self.grafo, top, "Top 10 Hubs (más rutas directas)")
-        self._actualizar_vista(nodos=[a.code for a in top])
+        # Marcamos los hubs en el mapa
+        self.mapa.mostrar_aeropuertos(top)
 
     def _mostrar_todos(self):
         if not self.grafo.vertices:
@@ -982,11 +917,10 @@ class AplicacionGrafo(tk.Tk):
             return
         VentanaResultados(self, self.grafo, self.grafo.vertices, "Todos los Aeropuertos")
 
-
     def _calcular_camino(self):
         """
         Ejecuta Dijkstra desde el origen, reconstruye el camino hasta
-        el destino, lo muestra en el canvas y abre VentanaCamino.
+        el destino y lo muestra sobre el mapa con una línea azul.
         """
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
@@ -1019,7 +953,8 @@ class AplicacionGrafo(tk.Tk):
             self._log(f"No existe camino entre {origen} y {destino}", "alerta")
             messagebox.showwarning(
                 "Sin camino",
-                f"No existe ruta entre {origen} y {destino}.\nPuede que pertenezcan a componentes distintas."
+                f"No existe ruta entre {origen} y {destino}.\n"
+                "Puede que pertenezcan a componentes distintas."
             )
             return
 
@@ -1029,11 +964,24 @@ class AplicacionGrafo(tk.Tk):
             f"({distancia_total:,.1f} km, {len(camino)-2} escalas)", "exito"
         )
 
-        # Mostrar en el canvas
-        self.canvas.dibujar_camino(self.grafo, camino)
+        # Mostrar el camino en el mapa
+        self.mapa.mostrar_camino(self.grafo, camino)
 
         # Abrir ventana de detalle
         VentanaCamino(self, self.grafo, camino, distancia_total)
+
+    def _recalcular_componentes(self):
+        """Recalcula las componentes conexas y las ordena por tamaño."""
+        grafo_dict = self.grafo.to_dict_grafo()
+        _, _, _, comps = self.analizador.es_conexo(grafo_dict)
+        comps.sort(key=len, reverse=True)
+        self._componentes = comps
+        self._comp_idx    = 0
+        self._comp_dict   = {
+            code: idx
+            for idx, comp in enumerate(comps)
+            for code in comp
+        }
 
     def _acerca_de(self):
         messagebox.showinfo(
@@ -1041,8 +989,8 @@ class AplicacionGrafo(tk.Tk):
             "Laboratorio 2 - Estructura de Datos II\n"
             "Universidad del Norte\n\n"
             "Grafo de rutas aéreas — Análisis de conexidad,\n"
-            "bipartito y MST (Kruskal)\n"
-            "Implementado con Python y tkinter"
+            "bipartito y MST (Kruskal) con mapa interactivo.\n\n"
+            "Implementado con Python, tkinter y tkintermapview."
         )
 
 
