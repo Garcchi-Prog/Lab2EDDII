@@ -1,15 +1,14 @@
-"""
-Lab2.py
-───────
-Punto de entrada del Laboratorio 2 - Estructura de Datos II
-Universidad del Norte
+##    Lab2.py
+##    ───────
+##    Punto de entrada del Laboratorio 2 - Estructura de Datos II
+##    Universidad del Norte
 
-Antes de ejecutar, instalar la librería del mapa:
-    pip install tkintermapview
+##    Antes de ejecutar, instalar la librería del mapa:
+##        pip install tkintermapview
 
-Ejecutar:
-    python Lab2.py
-"""
+##  Ejecutar:
+##      python Lab2.py
+
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext
@@ -42,6 +41,8 @@ COLOR_ALERTA    = "#f39c12"
 COLOR_TEXTO     = "#ecf0f1"
 COLOR_TEXTO_SEC = "#bdc3c7"
 
+## Se define la cantidad de Pines por defecto a mostrar en el mapa.
+default_pin : int = 300
 
 # ============================================================
 # VISUALIZADOR DE MAPA
@@ -114,9 +115,10 @@ class VisualizadorMapa(tk.Frame):
 
         self.limpiar()
 
-        # Para no congelar la app con miles de pins, limitamos a 300 por defecto.
+        # Para no congelar la app con miles de pins, limitamos a 300 por defecto,
+        # mas el usuario lo puede modificar.
         # El enunciado pide mostrar la geolocalización, no dibujar cada arista.
-        muestra = aeropuertos[:300]
+        muestra = aeropuertos[:default_pin]
 
         for a in muestra:
             # Saltamos aeropuertos con coordenadas inválidas (0, 0)
@@ -142,7 +144,7 @@ class VisualizadorMapa(tk.Frame):
                     text=a.code,
                     marker_color_circle="#3498db",
                     marker_color_outside="#1a6fa8",
-                    text_color="white",
+                    text_color="black",
                     font=("Arial", 8),
                     command=lambda m, info=texto_popup: messagebox.showinfo("Aeropuerto", info)
                 )
@@ -196,7 +198,7 @@ class VisualizadorMapa(tk.Frame):
                 text=etiqueta,
                 marker_color_circle=color_circulo,
                 marker_color_outside=color_exterior,
-                text_color="white",
+                text_color="black",
                 font=("Arial", 9, "bold"),
                 command=lambda m, info=texto_popup: messagebox.showinfo("Aeropuerto", info)
             )
@@ -564,13 +566,12 @@ class VentanaCamino(tk.Toplevel):
 # APLICACIÓN PRINCIPAL
 # ============================================================
 class AplicacionGrafo(tk.Tk):
-    """
-    Ventana principal del Laboratorio 2.
-    Estructura de tres paneles:
-      - Izquierdo: controles (cargar CSV, buscar aeropuerto, navegación)
-      - Central:   mapa interactivo con los aeropuertos geolocalizados
-      - Derecho:   análisis (conexidad, bipartito, MST) y log
-    """
+    ## Ventana principal del Laboratorio 2.
+    ## Estructura de tres paneles:
+    ##   - Izquierdo: controles (cargar CSV, buscar aeropuerto, navegación)
+    ##   - Central:   mapa interactivo con los aeropuertos geolocalizados
+    ##   - Derecho:   análisis (conexidad, bipartito, MST) y log
+    
 
     def __init__(self):
         super().__init__()
@@ -652,7 +653,11 @@ class AplicacionGrafo(tk.Tk):
 
         # Mostrar en mapa
         self._seccion(panel, "Vista del Mapa")
-        tk.Button(panel, text="Mostrar todos en el mapa",
+        tk.Label(panel, text= "Cantidad máxima de Pines (entero):",
+                 bg=COLOR_PANEL, fg= COLOR_TEXTO).pack(anchor="w", padx=20)
+        self.entry_buscar = tk.Entry(panel, width=30)
+        self.entry_buscar.pack(pady=5)
+        tk.Button(panel, text="Mostrar pines en el mapa",
                   command=self._mostrar_todos_en_mapa,
                   bg="#9b59b6", fg="white", width=28).pack(pady=3)
         tk.Button(panel, text="Limpiar mapa",
@@ -750,12 +755,19 @@ class AplicacionGrafo(tk.Tk):
 
     # ── Acciones de mapa ──────────────────────────────────────────────────────
     def _mostrar_todos_en_mapa(self):
-        """Pone un pin por cada aeropuerto del grafo."""
+        ## Coloca un pin por cada aeropuerto del grafo
+        try:
+            pins = int(self.entry_buscar.get().strip().upper())
+        except ValueError:
+            pins = 300
+        
+        default_pin = pins
+        
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
             return
         self._log(f"Mostrando {self.grafo.num_vertices()} aeropuertos en el mapa "
-                  f"(máx. 300 pins)...")
+                  f"(max. {default_pin} pines)...")
         self.update()
         self.mapa.grafo = self.grafo
         self.mapa.mostrar_aeropuertos(self.grafo.vertices)

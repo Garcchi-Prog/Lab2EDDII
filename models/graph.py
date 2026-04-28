@@ -2,25 +2,24 @@ from utils.haversine import haversine
 
 
 class Graph:
-    """
-    Grafo simple, no dirigido y ponderado representado mediante
-    una matriz de adyacencia. Cada vértice es un objeto Airport
-    y el peso de cada arista es la distancia Haversine en km.
-    """
+    
+    ##    Grafo simple, no dirigido y ponderado representado mediante
+    ##    una matriz de adyacencia. Cada vértice es un objeto Airport
+    ##    y el peso de cada arista es la distancia Haversine en km.
+    
 
     def __init__(self):
-        self.vertices   = []   # lista de Airport
+        self.vertices   = []   # lista de Aeropuetos
         self.adyacencia = []   # matriz NxN; None = sin arista
 
     # --------------------------------------------------------
     # ÍNDICE INTERNO
     # --------------------------------------------------------
     def _indice(self, code):
-        """
-        Retorna el índice del aeropuerto con ese código en la lista
-        de vértices, recorriendo la lista de forma lineal O(n).
-        Retorna -1 si el código no existe.
-        """
+        ##    Retorna el índice del aeropuerto con ese código en la lista
+        ##    de vértices, recorriendo la lista de forma lineal O(n).
+        ##    Retorna -1 si el código no existe.
+        
         for i, a in enumerate(self.vertices):
             if a.code == code:
                 return i
@@ -30,7 +29,8 @@ class Graph:
     # VÉRTICES Y ARISTAS
     # --------------------------------------------------------
     def agregar_vertice(self, airport):
-        """Agrega un aeropuerto como nuevo vértice y expande la matriz."""
+        ##    Agrega un aeropuerto como nuevo vértice y expande la matriz.
+
         n = len(self.vertices)
         self.vertices.append(airport)
         # Nueva fila para el vértice agregado
@@ -40,11 +40,10 @@ class Graph:
             fila.append(None)
 
     def agregar_arista(self, code1, code2):
-        """
-        Conecta dos aeropuertos con una arista ponderada por distancia Haversine.
-        Ignora bucles y aristas duplicadas.
-        La búsqueda de índices es O(1) gracias a _indices.
-        """
+        ##    Conecta dos aeropuertos con una arista ponderada por distancia Haversine.
+        ##    Ignora bucles y aristas duplicadas.
+        ##    La búsqueda de índices es O(1) gracias a _indices.
+        
         i1, i2 = self._indice(code1), self._indice(code2)
         if i1 == -1 or i2 == -1 or i1 == i2:
             return

@@ -6,28 +6,24 @@ from collections import deque
 # ============================================================
 
 class UnionFind:
-    """
-    Estructura de conjuntos disjuntos con compresión de camino
-    y unión por rango. Se usa en el algoritmo de Kruskal para
-    detectar ciclos al construir el MST.
-    """
+    ##   Estructura de conjuntos disjuntos con compresión de camino
+    ##   y unión por rango. Se usa en el algoritmo de Kruskal para
+    ##   detectar ciclos al construir el MST.
 
     def __init__(self, elementos):
         self.padre = {x: x for x in elementos}
         self.rango  = {x: 0 for x in elementos}
 
     def encontrar(self, x):
-        """Encuentra la raíz del conjunto de x con compresión de camino."""
+        ##   Encuentra la raíz del conjunto de x con compresión de camino.
         if self.padre[x] != x:
             self.padre[x] = self.encontrar(self.padre[x])
         return self.padre[x]
 
     def unir(self, x, y):
-        """
-        Une los conjuntos de x e y.
-        Retorna True si se unieron, False si ya pertenecían al mismo
-        conjunto (es decir, agregar la arista formaría un ciclo).
-        """
+        ##    Une los conjuntos de x e y. 
+        ##    Retorna Verdadero si se unieron, Falso si ya pertenecían al mismo
+        ##    conjunto (es decir, agregar la arista formaría un ciclo).
         rx, ry = self.encontrar(x), self.encontrar(y)
         if rx == ry:
             return False
@@ -46,28 +42,26 @@ class UnionFind:
 # ============================================================
 
 class GrafoAnalizador:
-    """
-    Contiene los algoritmos de análisis del grafo:
-      1. DFS  → conexidad y componentes conexas.
-      2. BFS  → verificación de grafo bipartito.
-      3. Kruskal → árbol de expansión mínima (MST).
-    No usa librerías externas para ninguno de estos algoritmos.
-    """
-
+    ##    Contiene los algoritmos de análisis del grafo:
+    ##    1. DFS  → conexidad y componentes conexas.
+    ##    2. BFS  → verificación de grafo bipartito.
+    ##    3. Kruskal → árbol de expansión mínima (MST).
+    ##    No usa librerías externas para ninguno de estos algoritmos.
+    
     # --------------------------------------------------------
     # 1. DFS – Conexidad y componentes
     # --------------------------------------------------------
 
     def es_conexo(self, grafo):
-        """
-        Determina si el grafo es conexo usando DFS iterativo.
+        
+        ##    Determina si el grafo es conexo usando DFS iterativo.
 
-        Parámetros:
-            grafo: dict {código: [lista de códigos vecinos]}
+        ##    Parámetros:
+        ##        grafo: dict {código: [lista de códigos vecinos]}
 
-        Retorna:
-            (bool_conexo, num_componentes, lista_tamaños, lista_componentes)
-        """
+        ##    Retorna:
+        ##        (bool_conexo, num_componentes, lista_tamaños, lista_componentes)
+        
         visitados   = set()
         componentes = []
 
@@ -92,18 +86,16 @@ class GrafoAnalizador:
     # 2. BFS – Bipartito
     # --------------------------------------------------------
 
-    def es_bipartito(self, grafo, vertices=None):
-        """
-        Verifica si el subgrafo inducido por 'vertices' es bipartito.
-        Usa BFS con coloreo de dos colores (0 y 1).
+    def es_bipartito(self, grafo, vertices = None):
+        ##    Verifica si el subgrafo inducido por "vertices" es bipartito.
+        ##    Usa BFS con coloreo de dos colores (0 y 1).
 
-        Parámetros:
-            grafo:    dict {código: [vecinos]}
-            vertices: lista de códigos a revisar (None = todos)
+        ##    Parámetros:
+        ##        grafo:    dict {código: [vecinos]}
+        ##        vertices: lista de códigos a revisar (None == todos)
 
-        Retorna:
-            True si es bipartito, False en caso contrario.
-        """
+        ##    Retorna: Verdadero si es bipartito, Falso en caso contrario.
+
         if vertices is None:
             vertices = list(grafo.keys())
 
@@ -128,16 +120,15 @@ class GrafoAnalizador:
     # --------------------------------------------------------
 
     def kruskal_mst(self, vertices, aristas):
-        """
-        Calcula el árbol de expansión mínima usando el algoritmo de Kruskal.
+        ##    Calcula el árbol de expansión mínima usando el algoritmo de Kruskal.
 
-        Parámetros:
-            vertices: lista de códigos de aeropuertos (nodos del subgrafo)
-            aristas:  lista de (peso, code1, code2)
+        ##    Parámetros:
+        ##        vertices: lista de códigos de aeropuertos (nodos del subgrafo)
+        ##        aristas:  lista de (peso, code1, code2)
 
-        Retorna:
-            (peso_total_km, lista de (code1, code2, peso))
-        """
+        ##    Retorna:
+        ##        (peso_total_km, lista de (code1, code2, peso))
+
         uf = UnionFind(vertices)
         aristas_ord = sorted(aristas, key=lambda x: x[0])
         peso_total, mst = 0, []
@@ -153,12 +144,11 @@ class GrafoAnalizador:
         return peso_total, mst
 
     def mst_por_componente(self, grafo, aristas):
-        """
-        Calcula el MST de cada componente conexa del grafo.
+        ##    Calcula el MST de cada componente conexa del grafo.
 
-        Retorna lista de dicts con:
-            'componente', 'vertices', 'peso_mst', 'aristas_mst'
-        """
+        ##    Retorna lista de dicts con:
+        ##        'componente', 'vertices', 'peso_mst', 'aristas_mst'
+        
         _, num_comp, _, componentes = self.es_conexo(grafo)
         resultados = []
 
@@ -182,19 +172,18 @@ class GrafoAnalizador:
     # --------------------------------------------------------
 
     def dijkstra(self, grafo_pesos, origen):
-        """
-        Calcula los caminos mínimos desde 'origen' a todos los demás
-        vértices usando el algoritmo de Dijkstra con cola de prioridad
-        implementada manualmente (sin heapq).
+        ##    Calcula los caminos mínimos desde el "origen" a todos los demás
+        ##    vértices usando el algoritmo de Dijkstra con cola de prioridad
+        ##    implementada manualmente (sin heapq).
 
-        Parámetros:
-            grafo_pesos: dict {code: [(vecino_code, peso), ...]}
-            origen:      código del aeropuerto de origen
+        ##    Parámetros:
+        ##        grafo_pesos: dict {code: [(vecino_code, peso), ...]}
+        ##        origen:      código del aeropuerto de origen
 
-        Retorna:
-            distancias: dict {code: distancia_total_km}
-            previos:    dict {code: code_anterior}  (para reconstruir el camino)
-        """
+        ##    Retorna:
+        ##        distancias: dict {code: distancia_total_km}
+        ##        previos:    dict {code: code_anterior}  (para reconstruir el camino)
+        
         distancias = {v: float('inf') for v in grafo_pesos}
         distancias[origen] = 0.0
         previos   = {v: None for v in grafo_pesos}
@@ -225,12 +214,11 @@ class GrafoAnalizador:
         return distancias, previos
 
     def reconstruir_camino(self, previos, origen, destino):
-        """
-        Reconstruye la secuencia de vértices del camino mínimo
-        usando el dict de previos generado por Dijkstra.
+        ##   Reconstruye la secuencia de vértices del camino mínimo
+        ##   usando el dict de previos generado por Dijkstra.
 
-        Retorna lista [origen, ..., destino], o [] si no existe camino.
-        """
+        ##   Retorna lista [origen, ..., destino], o [] si no existe camino.
+        
         camino = []
         actual = destino
 
@@ -241,6 +229,6 @@ class GrafoAnalizador:
         camino.reverse()
 
         if not camino or camino[0] != origen:
-            return []   # No hay camino entre origen y destino
+            return []   # No hay camino entre el origen y el destino
 
         return camino
