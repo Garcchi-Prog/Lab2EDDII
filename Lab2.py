@@ -655,8 +655,8 @@ class AplicacionGrafo(tk.Tk):
         self._seccion(panel, "Vista del Mapa")
         tk.Label(panel, text= "Cantidad máxima de Pines (entero):",
                  bg=COLOR_PANEL, fg= COLOR_TEXTO).pack(anchor="w", padx=20)
-        self.entry_buscar = tk.Entry(panel, width=30)
-        self.entry_buscar.pack(pady=5)
+        self.entry_pines = tk.Entry(panel, width=30)
+        self.entry_pines.pack(pady=5)
         tk.Button(panel, text="Mostrar pines en el mapa",
                   command=self._mostrar_todos_en_mapa,
                   bg="#9b59b6", fg="white", width=28).pack(pady=3)
@@ -757,7 +757,7 @@ class AplicacionGrafo(tk.Tk):
     def _mostrar_todos_en_mapa(self):
         ## Coloca un pin por cada aeropuerto del grafo
         try:
-            pins = int(self.entry_buscar.get().strip().upper())
+            pins = int(self.entry_pines.get().strip())
         except ValueError:
             pins = 300
         
