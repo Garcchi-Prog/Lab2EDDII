@@ -12,9 +12,9 @@ class Graph:
         self.vertices   = []   # lista de Aeropuetos
         self.adyacencia = []   # matriz NxN; None = sin arista
 
-    # --------------------------------------------------------
-    # ÍNDICE INTERNO
-    # --------------------------------------------------------
+    ## --------------------------------------------------------
+    ## ÍNDICE INTERNO
+    ## --------------------------------------------------------
     def _indice(self, code):
         ##    Retorna el índice del aeropuerto con ese código en la lista
         ##    de vértices, recorriendo la lista de forma lineal O(n).
@@ -25,9 +25,9 @@ class Graph:
                 return i
         return -1
 
-    # --------------------------------------------------------
-    # VÉRTICES Y ARISTAS
-    # --------------------------------------------------------
+    ## --------------------------------------------------------
+    ## VÉRTICES Y ARISTAS
+    ## --------------------------------------------------------
     def agregar_vertice(self, airport):
         ##    Agrega un aeropuerto como nuevo vértice y expande la matriz.
 
@@ -57,11 +57,13 @@ class Graph:
         self.adyacencia[i1][i2] = dist
         self.adyacencia[i2][i1] = dist
 
-    # --------------------------------------------------------
-    # CONSULTAS
-    # --------------------------------------------------------
+    ## --------------------------------------------------------
+    ## CONSULTAS
+    ## --------------------------------------------------------
     def obtener_vecinos(self, code):
-        """Retorna lista de (Airport, distancia_km) para el aeropuerto dado."""
+        ##    Devuelve una lista de aeropuetos con la distancia en Km 
+        ##    respecto al aeropuerto dado.
+
         idx = self._indice(code)
         if idx == -1:
             return []
@@ -72,11 +74,13 @@ class Graph:
         ]
 
     def num_vertices(self):
-        """Cantidad total de vértices en el grafo."""
+        ##   Cantidad total de vértices en el grafo.
+
         return len(self.vertices)
 
     def num_aristas(self):
-        """Cantidad total de aristas (sin duplicados)."""
+        ##    Cantidad total de aristas (sin duplicados).
+
         n = len(self.vertices)
         return sum(
             1 for i in range(n)
@@ -85,11 +89,13 @@ class Graph:
         )
 
     def grado(self, code):
-        """Número de rutas directas del aeropuerto."""
+        ##     Número de rutas directas del aeropuerto.
+
         return len(self.obtener_vecinos(code))
 
     def obtener_aristas(self):
-        """Retorna lista de (distancia_km, code1, code2) sin duplicados."""
+        ##    Retorna lista de (distancia_km, code1, code2) sin duplicados.
+
         n = len(self.vertices)
         return [
             (self.adyacencia[i][j], self.vertices[i].code, self.vertices[j].code)
@@ -99,19 +105,22 @@ class Graph:
         ]
 
     def airport_by_code(self, code):
-        """Retorna el objeto Airport del código dado, o None si no existe."""
+        ##    Retorna el objeto Airport del código dado, o None si no existe.
+
         idx = self._indice(code)
         return self.vertices[idx] if idx != -1 else None
 
     def to_dict_grafo(self):
-        """Devuelve {code: [vecinos_codes]} para ser usado por GrafoAnalizador."""
+        ##    Devuelve {code: [vecinos_codes]} para ser usado por GrafoAnalizador.
+
         return {
             a.code: [v.code for v, _ in self.obtener_vecinos(a.code)]
             for a in self.vertices
         }
 
     def to_dict_pesos(self):
-        """Devuelve {code: [(vecino_code, distancia_km), ...]} para Dijkstra."""
+        ##    Devuelve {code: [(vecino_code, distancia_km), ...]} para Dijkstra.
+
         return {
             a.code: [(v.code, d) for v, d in self.obtener_vecinos(a.code)]
             for a in self.vertices

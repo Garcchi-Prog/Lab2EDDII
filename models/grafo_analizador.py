@@ -48,19 +48,15 @@ class GrafoAnalizador:
     ##    3. Kruskal → árbol de expansión mínima (MST).
     ##    No usa librerías externas para ninguno de estos algoritmos.
     
-    # --------------------------------------------------------
-    # 1. DFS – Conexidad y componentes
-    # --------------------------------------------------------
+    ## --------------------------------------------------------
+    ## 1. DFS – Conexidad y componentes
+    ## --------------------------------------------------------
 
     def es_conexo(self, grafo):
-        
         ##    Determina si el grafo es conexo usando DFS iterativo.
 
-        ##    Parámetros:
+        ##    Este es el parámetro:
         ##        grafo: dict {código: [lista de códigos vecinos]}
-
-        ##    Retorna:
-        ##        (bool_conexo, num_componentes, lista_tamaños, lista_componentes)
         
         visitados   = set()
         componentes = []
@@ -80,21 +76,23 @@ class GrafoAnalizador:
                 componentes.append(comp)
 
         num = len(componentes)
+
+        ##    Esto es lo que retorna:
+        ##        (bool_conexo, num_componentes, lista_tamaños, lista_componentes)
+        
         return num == 1, num, [len(c) for c in componentes], componentes
 
-    # --------------------------------------------------------
-    # 2. BFS – Bipartito
-    # --------------------------------------------------------
+    ## --------------------------------------------------------
+    ## 2. BFS – Bipartito
+    ## --------------------------------------------------------
 
     def es_bipartito(self, grafo, vertices = None):
         ##    Verifica si el subgrafo inducido por "vertices" es bipartito.
         ##    Usa BFS con coloreo de dos colores (0 y 1).
 
-        ##    Parámetros:
+        ##    Estos son los parámetros:
         ##        grafo:    dict {código: [vecinos]}
         ##        vertices: lista de códigos a revisar (None == todos)
-
-        ##    Retorna: Verdadero si es bipartito, Falso en caso contrario.
 
         if vertices is None:
             vertices = list(grafo.keys())
@@ -112,22 +110,23 @@ class GrafoAnalizador:
                         color[vecino] = 1 - color[actual]
                         cola.append(vecino)
                     elif color[vecino] == color[actual]:
-                        return False  # Ciclo de longitud impar → no bipartito
+
+        ##    Esto es lo que retorna:
+        ##        Verdadero si es bipartito, Falso en caso contrario.   
+
+                        return False  ##    Ciclo de longitud impar → no bipartito
         return True
 
-    # --------------------------------------------------------
-    # 3. Kruskal – MST
-    # --------------------------------------------------------
+    ## --------------------------------------------------------
+    ## 3. Kruskal – MST
+    ## --------------------------------------------------------
 
     def kruskal_mst(self, vertices, aristas):
         ##    Calcula el árbol de expansión mínima usando el algoritmo de Kruskal.
 
-        ##    Parámetros:
+        ##    Estos son los parámetros:
         ##        vertices: lista de códigos de aeropuertos (nodos del subgrafo)
         ##        aristas:  lista de (peso, code1, code2)
-
-        ##    Retorna:
-        ##        (peso_total_km, lista de (code1, code2, peso))
 
         uf = UnionFind(vertices)
         aristas_ord = sorted(aristas, key=lambda x: x[0])
@@ -141,13 +140,13 @@ class GrafoAnalizador:
                 if len(mst) == len(vertices) - 1:
                     break
 
+        ##    Esto es lo que retorna:
+        ##        (peso_total_km, lista de (code1, code2, peso))
+
         return peso_total, mst
 
     def mst_por_componente(self, grafo, aristas):
         ##    Calcula el MST de cada componente conexa del grafo.
-
-        ##    Retorna lista de dicts con:
-        ##        'componente', 'vertices', 'peso_mst', 'aristas_mst'
         
         _, num_comp, _, componentes = self.es_conexo(grafo)
         resultados = []
@@ -165,35 +164,34 @@ class GrafoAnalizador:
                 'aristas_mst': mst
             })
 
+        ##    Este metodo retorna lista de dicts con:
+        ##        'componente', 'vertices', 'peso_mst', 'aristas_mst'
+
         return resultados
 
-    # --------------------------------------------------------
-    # 4. Dijkstra – Camino mínimo
-    # --------------------------------------------------------
+    ## --------------------------------------------------------
+    ## 4. Dijkstra – Caminos mínimos
+    ## --------------------------------------------------------
 
     def dijkstra(self, grafo_pesos, origen):
         ##    Calcula los caminos mínimos desde el "origen" a todos los demás
         ##    vértices usando el algoritmo de Dijkstra con cola de prioridad
         ##    implementada manualmente (sin heapq).
 
-        ##    Parámetros:
+        ##    Estos son los parámetros:
         ##        grafo_pesos: dict {code: [(vecino_code, peso), ...]}
         ##        origen:      código del aeropuerto de origen
-
-        ##    Retorna:
-        ##        distancias: dict {code: distancia_total_km}
-        ##        previos:    dict {code: code_anterior}  (para reconstruir el camino)
         
         distancias = {v: float('inf') for v in grafo_pesos}
         distancias[origen] = 0.0
         previos   = {v: None for v in grafo_pesos}
 
-        # Cola de prioridad manual: lista de (distancia, vertice)
+        ##    Cola de prioridad manual: lista de (distancia, vertice)
         cola     = [(0.0, origen)]
         visitados = set()
 
         while cola:
-            # Extraemos el nodo con menor distancia acumulada
+            ##    Extraemos el nodo con menor distancia acumulada
             cola.sort(key=lambda x: x[0])
             dist_actual, actual = cola.pop(0)
 
@@ -211,13 +209,15 @@ class GrafoAnalizador:
                     previos[vecino]    = actual
                     cola.append((nueva_dist, vecino))
 
+        ##    Esto es lo que retorna:
+        ##        distancias: dict {code: distancia_total_km}
+        ##        previos:    dict {code: code_anterior}  (para reconstruir el camino)
+
         return distancias, previos
 
     def reconstruir_camino(self, previos, origen, destino):
         ##   Reconstruye la secuencia de vértices del camino mínimo
         ##   usando el dict de previos generado por Dijkstra.
-
-        ##   Retorna lista [origen, ..., destino], o [] si no existe camino.
         
         camino = []
         actual = destino
@@ -229,6 +229,9 @@ class GrafoAnalizador:
         camino.reverse()
 
         if not camino or camino[0] != origen:
-            return []   # No hay camino entre el origen y el destino
+        
+        ##   Retorna una lista [origen, ..., destino], o una lista vacia si no existe camino.
+
+            return []   ##    No hay camino entre el origen y el destino
 
         return camino

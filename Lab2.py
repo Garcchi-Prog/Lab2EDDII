@@ -1,13 +1,9 @@
-##    Lab2.py
-##    ───────
-##    Punto de entrada del Laboratorio 2 - Estructura de Datos II
-##    Universidad del Norte
-
-##    Antes de ejecutar, instalar la librería del mapa:
+##    Antes de ejecutar, se debe instalar la librería del mapa,
+##    use el siguiente comando en la terminal de VSC:
 ##        pip install tkintermapview
 
-##  Ejecutar:
-##      python Lab2.py
+##    Para ejecutar la aplicación debe correr directamente
+##    este archivo (Lab2.py).
 
 
 import tkinter as tk
@@ -15,14 +11,16 @@ from tkinter import ttk, messagebox, filedialog, scrolledtext
 import os
 import datetime
 
-# Intentamos importar tkintermapview; si no está, avisamos al usuario
+##    Intentamos importar tkintermapview y si no está, avisamos al usuario.
+
 try:
     import tkintermapview
     MAPA_DISPONIBLE = True
 except ImportError:
     MAPA_DISPONIBLE = False
 
-# ── Módulos propios ───────────────────────────────────────────────────────────
+##    Se importan los módulos propios del proyecto.
+
 from models.graph            import Graph
 from models.grafo_analizador import GrafoAnalizador
 from models.Importcsv        import FlightLoader
@@ -30,6 +28,7 @@ from models.Importcsv        import FlightLoader
 # ============================================================
 # PALETA DE COLORES
 # ============================================================
+
 COLOR_FONDO     = "#2c3e50"
 COLOR_PANEL     = "#34495e"
 COLOR_TARJETA   = "#1C2128"
@@ -41,23 +40,24 @@ COLOR_ALERTA    = "#f39c12"
 COLOR_TEXTO     = "#ecf0f1"
 COLOR_TEXTO_SEC = "#bdc3c7"
 
-## Se define la cantidad de Pines por defecto a mostrar en el mapa.
-default_pin : int = 300
+##    Se define la cantidad de Pines por defecto a mostrar en el mapa.
+
+default_pin : int = 1000
 
 # ============================================================
 # VISUALIZADOR DE MAPA
 # ============================================================
+
 class VisualizadorMapa(tk.Frame):
-    """
-    Muestra los aeropuertos sobre un mapa real usando tkintermapview.
-    Permite marcar aeropuertos individuales y trazar rutas (camino mínimo).
-    """
+    ##    Muestra los aeropuertos sobre un mapa real usando TKinterMapView.
+    ##    Permite marcar los aeropuertos de manera individual y trazar rutas (camino mínimo).
 
     def __init__(self, parent, **kwargs):
         super().__init__(parent, bg="black", **kwargs)
 
         self.grafo = None
-        # Guardamos referencias a los markers y paths para poder borrarlos
+
+        # Guardamos las referencias a los markers y paths para poder borrarlos
         self._markers = []
         self._paths   = []
 
@@ -92,7 +92,7 @@ class VisualizadorMapa(tk.Frame):
     # ──────────────────────────────────────────────────────────────────────────
 
     def limpiar(self):
-        """Borra todos los marcadores y rutas del mapa."""
+        ##    Borra todos los marcadores y rutas del mapa.
         if not MAPA_DISPONIBLE or self.widget_mapa is None:
             return
         for m in self._markers:
@@ -103,13 +103,12 @@ class VisualizadorMapa(tk.Frame):
         self._paths.clear()
 
     def mostrar_aeropuertos(self, aeropuertos, resaltar=None):
-        """
-        Pone un pin en el mapa por cada aeropuerto de la lista.
-        Si resaltar es un código IATA, ese pin se muestra de otro color.
+        ##    Pone un pin en el mapa por cada aeropuerto de la lista.
+        ##    Si resaltar es un código IATA, ese pin se muestra de otro color.
 
-        aeropuertos: lista de objetos Airport
-        resaltar:    código IATA (str) o None
-        """
+        ##    aeropuertos: lista de objetos Airport
+        ##    resaltar:    código IATA (str) o None
+
         if not MAPA_DISPONIBLE or self.widget_mapa is None:
             return
 
@@ -118,17 +117,20 @@ class VisualizadorMapa(tk.Frame):
         # Para no congelar la app con miles de pins, limitamos a 300 por defecto,
         # mas el usuario lo puede modificar.
         # El enunciado pide mostrar la geolocalización, no dibujar cada arista.
+
         muestra = aeropuertos[:default_pin]
 
         for a in muestra:
             # Saltamos aeropuertos con coordenadas inválidas (0, 0)
+
             if a.lat == 0.0 and a.lon == 0.0:
                 continue
 
             texto_popup = f"{a.code} — {a.name}\n{a.city}, {a.country}"
 
             if a.code == resaltar:
-                # Pin amarillo para el aeropuerto seleccionado
+                ##    Pin amarillo para el aeropuerto seleccionado
+
                 marker = self.widget_mapa.set_marker(
                     a.lat, a.lon,
                     text=a.code,
@@ -151,6 +153,7 @@ class VisualizadorMapa(tk.Frame):
             self._markers.append(marker)
 
         # Si hay un aeropuerto resaltado, centramos el mapa en él
+
         if resaltar and self.grafo:
             a = self.grafo.airport_by_code(resaltar)
             if a and not (a.lat == 0 and a.lon == 0):
@@ -158,13 +161,12 @@ class VisualizadorMapa(tk.Frame):
                 self.widget_mapa.set_zoom(5)
 
     def mostrar_camino(self, grafo, camino):
-        """
-        Dibuja el camino mínimo sobre el mapa.
-        - Pin verde: origen
-        - Pin rojo:  destino
-        - Pin naranja: escalas intermedias
-        - Línea azul conectando todos los puntos
-        """
+        ##    Dibuja el camino mínimo sobre el mapa.
+        ##    - Pin verde: origen
+        ##    - Pin rojo:  destino
+        ##    - Pin naranja: escalas intermedias
+        ##    - Línea azul conectando todos los puntos
+        
         if not MAPA_DISPONIBLE or self.widget_mapa is None:
             return
 
@@ -205,6 +207,7 @@ class VisualizadorMapa(tk.Frame):
             self._markers.append(marker)
 
         # Trazamos la polyline del recorrido si hay al menos 2 puntos
+
         if len(coordenadas) >= 2:
             path = self.widget_mapa.set_path(
                 coordenadas,
@@ -214,6 +217,7 @@ class VisualizadorMapa(tk.Frame):
             self._paths.append(path)
 
             # Ajustamos la vista para que se vea todo el camino
+
             lats = [c[0] for c in coordenadas]
             lons = [c[1] for c in coordenadas]
             lat_centro = (max(lats) + min(lats)) / 2
@@ -226,7 +230,7 @@ class VisualizadorMapa(tk.Frame):
 # VENTANA: INFO DE AEROPUERTO
 # ============================================================
 class VentanaInfoAeropuerto(tk.Toplevel):
-    """Muestra los datos de un aeropuerto y sus rutas directas."""
+    ##    Muestra los datos de un aeropuerto y sus rutas directas.
 
     def __init__(self, parent, airport, grafo):
         super().__init__(parent)
@@ -244,7 +248,8 @@ class VentanaInfoAeropuerto(tk.Toplevel):
         notebook = ttk.Notebook(frame)
         notebook.pack(fill="both", expand=True)
 
-        # Pestaña 1: Datos del aeropuerto
+        ##    Pestaña 1: Datos del aeropuerto
+
         tab1 = tk.Frame(notebook, bg=COLOR_TARJETA)
         notebook.add(tab1, text="Datos del Aeropuerto")
 
@@ -267,7 +272,8 @@ class VentanaInfoAeropuerto(tk.Toplevel):
             tk.Label(fila, text=val, anchor="w",
                      bg=bg, fg=COLOR_TEXTO).pack(side="left", padx=5, pady=3)
 
-        # Pestaña 2: Rutas directas
+        ##    Pestaña 2: Rutas directas
+
         tab2 = tk.Frame(notebook, bg=COLOR_TARJETA)
         notebook.add(tab2, text=f"Rutas Directas ({len(vecinos)})")
 
@@ -293,7 +299,7 @@ class VentanaInfoAeropuerto(tk.Toplevel):
 # VENTANA: RESULTADOS GENERALES
 # ============================================================
 class VentanaResultados(tk.Toplevel):
-    """Lista de aeropuertos con doble clic para ver su información."""
+    ##    Lista de aeropuertos con doble clic para ver su información.
 
     def __init__(self, parent, grafo, aeropuertos, titulo="Resultados"):
         super().__init__(parent)
@@ -341,7 +347,7 @@ class VentanaResultados(tk.Toplevel):
 # VENTANA: MST
 # ============================================================
 class VentanaMST(tk.Toplevel):
-    """Muestra el resultado del MST (Kruskal) por cada componente."""
+    ##    Muestra el resultado del MST (Kruskal) por cada componente.
 
     def __init__(self, parent, resultados):
         super().__init__(parent)
@@ -380,11 +386,9 @@ class VentanaMST(tk.Toplevel):
 # VENTANA: VÉRTICE 1 — INFO + TOP 10 CAMINOS MÁS LARGOS
 # ============================================================
 class VentanaVertice1(tk.Toplevel):
-    """
-    Muestra toda la información del aeropuerto seleccionado como
-    vértice 1, y la tabla con los 10 aeropuertos cuyos caminos
-    mínimos desde ese vértice son los más largos.
-    """
+    ##    Muestra toda la información del aeropuerto seleccionado como
+    ##    vértice 1, y la tabla con los 10 aeropuertos cuyos caminos
+    ##    mínimos desde ese vértice son los más largos.
 
     def __init__(self, parent, grafo, airport, distancias):
         super().__init__(parent)
@@ -401,7 +405,8 @@ class VentanaVertice1(tk.Toplevel):
         notebook = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True, padx=12, pady=6)
 
-        # Pestaña 1: Información del aeropuerto
+        ##    Pestaña 1: Información del aeropuerto
+
         tab_info = tk.Frame(notebook, bg=COLOR_TARJETA)
         notebook.add(tab_info, text="Información del Aeropuerto")
 
@@ -425,7 +430,8 @@ class VentanaVertice1(tk.Toplevel):
                      bg=bg, fg=COLOR_TEXTO,
                      font=("Arial", 10, "bold")).pack(side="left", padx=8, pady=5)
 
-        # Pestaña 2: Top 10 caminos más largos
+        ##    Pestaña 2: Top 10 caminos más largos
+
         tab_top = tk.Frame(notebook, bg=COLOR_TARJETA)
         notebook.add(tab_top, text="Top 10 — Caminos más largos")
 
@@ -439,6 +445,7 @@ class VentanaVertice1(tk.Toplevel):
             for code, dist in distancias.items()
             if dist != float("inf") and code != airport.code
         ]
+
         top10 = sorted(alcanzables, reverse=True)[:10]
 
         cols = ("rank", "code", "name", "city", "country", "lat", "lon", "distancia")
@@ -484,11 +491,9 @@ class VentanaVertice1(tk.Toplevel):
 # VENTANA: CAMINO MÍNIMO
 # ============================================================
 class VentanaCamino(tk.Toplevel):
-    """
-    Muestra el camino mínimo entre dos aeropuertos:
-    distancia total, número de escalas e información
-    detallada de cada vértice intermedio.
-    """
+    ##    Muestra el camino mínimo entre dos aeropuertos:
+    ##    distancia total, número de escalas e información
+    ##    detallada de cada vértice intermedio.
 
     def __init__(self, parent, grafo, camino, distancia_total):
         super().__init__(parent)
@@ -566,11 +571,11 @@ class VentanaCamino(tk.Toplevel):
 # APLICACIÓN PRINCIPAL
 # ============================================================
 class AplicacionGrafo(tk.Tk):
-    ## Ventana principal del Laboratorio 2.
-    ## Estructura de tres paneles:
-    ##   - Izquierdo: controles (cargar CSV, buscar aeropuerto, navegación)
-    ##   - Central:   mapa interactivo con los aeropuertos geolocalizados
-    ##   - Derecho:   análisis (conexidad, bipartito, MST) y log
+    ##    Ventana principal del Laboratorio 2.
+    ##    Estructura de tres paneles:
+    ##        - Izquierdo: controles (cargar CSV, buscar aeropuerto, navegación)
+    ##        - Central:   mapa interactivo con los aeropuertos geolocalizados
+    ##        - Derecho:   análisis (conexidad, bipartito, MST) y log
     
 
     def __init__(self):
@@ -584,6 +589,7 @@ class AplicacionGrafo(tk.Tk):
         self.loader     = FlightLoader()
 
         # Lista de componentes (para navegación)
+
         self._componentes = []
         self._comp_idx    = 0
         self._comp_dict   = {}
@@ -601,7 +607,7 @@ class AplicacionGrafo(tk.Tk):
                 "alerta"
             )
 
-    # ── Menú ──────────────────────────────────────────────────────────────────
+    ##    Menú 
     def _crear_menu(self):
         menubar = tk.Menu(self)
         self.config(menu=menubar)
@@ -622,7 +628,7 @@ class AplicacionGrafo(tk.Tk):
         menubar.add_cascade(label="Ayuda", menu=m_ayuda)
         m_ayuda.add_command(label="Acerca de", command=self._acerca_de)
 
-    # ── Panel izquierdo ───────────────────────────────────────────────────────
+    ##    Panel izquierdo
     def _crear_panel_izquierdo(self):
         panel = tk.Frame(self, bg=COLOR_PANEL, width=310)
         panel.pack(side="left", fill="y", padx=10, pady=10)
@@ -632,6 +638,7 @@ class AplicacionGrafo(tk.Tk):
                  bg=COLOR_PANEL, fg=COLOR_BOTON).pack(pady=10)
 
         # Dataset
+        
         self._seccion(panel, "Dataset")
         tk.Button(panel, text="Cargar CSV de Vuelos", command=self._cargar_csv,
                   bg=COLOR_BOTON, fg="white", width=28).pack(pady=5)
@@ -640,6 +647,7 @@ class AplicacionGrafo(tk.Tk):
         self.lbl_dataset.pack(pady=5)
 
         # Buscar aeropuerto
+
         self._seccion(panel, "Buscar Aeropuerto")
         tk.Label(panel, text="Código IATA (ej. BOG, MIA):",
                  bg=COLOR_PANEL, fg=COLOR_TEXTO).pack(anchor="w", padx=20)
@@ -652,6 +660,7 @@ class AplicacionGrafo(tk.Tk):
                   bg=COLOR_ALERTA, fg="white", width=28).pack(pady=3)
 
         # Mostrar en mapa
+
         self._seccion(panel, "Vista del Mapa")
         tk.Label(panel, text= "Cantidad máxima de Pines (entero):",
                  bg=COLOR_PANEL, fg= COLOR_TEXTO).pack(anchor="w", padx=20)
@@ -665,6 +674,7 @@ class AplicacionGrafo(tk.Tk):
                   bg=COLOR_BORDE, fg="white", width=28).pack(pady=3)
 
         # Camino mínimo
+
         self._seccion(panel, "Camino Mínimo (Dijkstra)")
         tk.Label(panel, text="Origen (código IATA):",
                  bg=COLOR_PANEL, fg=COLOR_TEXTO).pack(anchor="w", padx=20)
@@ -679,6 +689,7 @@ class AplicacionGrafo(tk.Tk):
                   bg=COLOR_ERROR, fg="white", width=28).pack(pady=5)
 
         # Estadísticas rápidas
+
         self._seccion(panel, "Estadísticas")
         tk.Button(panel, text="Top 10 Hubs (más rutas)",
                   command=self._top_hubs, bg="#9b59b6", fg="white",
@@ -687,7 +698,7 @@ class AplicacionGrafo(tk.Tk):
                   command=self._mostrar_todos, bg="#9b59b6", fg="white",
                   width=28).pack(pady=4)
 
-    # ── Panel central (mapa) ──────────────────────────────────────────────────
+    #    Panel central (donde se muestra el mapa) 
     def _crear_panel_central(self):
         panel = tk.Frame(self, bg=COLOR_FONDO)
         panel.pack(side="left", fill="both", expand=True, pady=10)
@@ -704,7 +715,7 @@ class AplicacionGrafo(tk.Tk):
         self.mapa = VisualizadorMapa(panel)
         self.mapa.pack(fill="both", expand=True, padx=10, pady=5)
 
-    # ── Panel derecho ─────────────────────────────────────────────────────────
+    #    Panel derecho
     def _crear_panel_derecho(self):
         panel = tk.Frame(self, bg=COLOR_PANEL, width=310)
         panel.pack(side="right", fill="y", padx=10, pady=10)
@@ -733,7 +744,7 @@ class AplicacionGrafo(tk.Tk):
         self.txt_log.pack(padx=5, pady=5, fill="both", expand=True)
         self.txt_log.configure(state="disabled")
 
-    # ── Utilidades UI ─────────────────────────────────────────────────────────
+    #    Utilidades para la UI 
     def _seccion(self, parent, titulo):
         tk.Frame(parent, bg=COLOR_BORDE, height=2).pack(fill="x", padx=10, pady=12)
         tk.Label(parent, text=titulo, font=("Arial", 10, "bold"),
@@ -753,15 +764,15 @@ class AplicacionGrafo(tk.Tk):
             text=f"Vértices: {self.grafo.num_vertices()}  |  Aristas: {self.grafo.num_aristas()}"
         )
 
-    # ── Acciones de mapa ──────────────────────────────────────────────────────
+    #    Acciones de mapa 
     def _mostrar_todos_en_mapa(self):
         ## Coloca un pin por cada aeropuerto del grafo
         global default_pin
         try:
             pins = int(self.entry_pines.get().strip())
-            default_pin = min(pins, 300)   # maximo permitido: 300
+            default_pin = min(pins, 3256)   # maximo permitido: 300
         except ValueError:
-            default_pin = 300
+            default_pin = 1000
 
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
@@ -777,17 +788,19 @@ class AplicacionGrafo(tk.Tk):
         self.mapa.limpiar()
         self._log("Mapa limpiado.")
 
-    # ── Acciones principales ──────────────────────────────────────────────────
+    #    Acciones principales 
     def _cargar_csv(self):
         ruta = filedialog.askopenfilename(
             title="Seleccionar flights_final.csv",
             filetypes=[("CSV", "*.csv"), ("Todos", "*.*")]
         )
+
         if not ruta:
             return
         self._log("Cargando dataset (puede tardar unos segundos)...")
         self.update()
         exito, grafo, mensaje = self.loader.cargar(ruta)
+
         if exito:
             self.grafo = grafo
             self.mapa.grafo = grafo
@@ -796,7 +809,9 @@ class AplicacionGrafo(tk.Tk):
             self._log(mensaje, "exito")
             self._actualizar_contador()
             self._recalcular_componentes()
+
             # Mostramos todos los aeropuertos en el mapa al cargar
+
             self._log("Cargando pins en el mapa...")
             self.update()
             self.mapa.mostrar_aeropuertos(self.grafo.vertices)
@@ -806,10 +821,12 @@ class AplicacionGrafo(tk.Tk):
 
     def _buscar_aeropuerto(self):
         code = self.entry_buscar.get().strip().upper()
+
         if not code:
             self._log("Ingrese un código IATA", "error")
             return
         a = self.grafo.airport_by_code(code)
+
         if not a:
             self._log(f"Aeropuerto '{code}' no encontrado", "error")
             return
@@ -817,15 +834,16 @@ class AplicacionGrafo(tk.Tk):
             f"Encontrado: {a.name} ({a.city}, {a.country}) — {self.grafo.grado(code)} rutas",
             "exito"
         )
+
         # Mostramos todos pero resaltamos el buscado
+
         self.mapa.mostrar_aeropuertos(self.grafo.vertices, resaltar=code)
 
     def _ver_vertice1(self):
-        """
-        Muestra la información completa del aeropuerto ingresado como
-        vértice 1, y calcula con Dijkstra los 10 destinos cuyos caminos
-        mínimos desde ese vértice son los más largos.
-        """
+        ##    Muestra la información completa del aeropuerto ingresado como
+        ##    vértice 1, y calcula con Dijkstra los 10 destinos cuyos caminos
+        ##    mínimos desde ese vértice son los más largos.
+        
         code = self.entry_buscar.get().strip().upper()
         if not code:
             self._log("Ingrese un código IATA en el campo de búsqueda", "error")
@@ -850,11 +868,16 @@ class AplicacionGrafo(tk.Tk):
         VentanaVertice1(self, self.grafo, a, distancias)
 
     def _analizar_conexidad(self):
+        ##    Revisa la conexividad del grafo de rutas llamando a la función
+        ##    de la clase GrafoAnalizador
+
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
             return
         grafo_d = self.grafo.to_dict_grafo()
+
         conexo, num, tamaños, _ = self.analizador.es_conexo(grafo_d)
+
         if conexo:
             self._log(f"El grafo ES CONEXO — {self.grafo.num_vertices()} vértices", "exito")
         else:
@@ -863,6 +886,9 @@ class AplicacionGrafo(tk.Tk):
                 self._log(f"  Comp. {i}: {t} aeropuertos")
             if len(tamaños) > 5:
                 self._log(f"  ... y {len(tamaños)-5} componentes más")
+
+        ##    Muestra un MessageBox mostrando los resultados obtenidos anteriormente.
+
         messagebox.showinfo(
             "Análisis de Conexidad",
             f"El grafo {'ES' if conexo else 'NO ES'} conexo.\n"
@@ -872,10 +898,14 @@ class AplicacionGrafo(tk.Tk):
         )
 
     def _analizar_bipartito(self):
+        ##    Llama a los metodos de la clase GrafoAnalizador para
+        ##    averiguar si el grafo de rutas es bipartito.
+
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
             return
         grafo_d  = self.grafo.to_dict_grafo()
+
         _, _, tamaños, comps = self.analizador.es_conexo(grafo_d)
         mayor    = comps[tamaños.index(max(tamaños))]
         es_bip   = self.analizador.es_bipartito(grafo_d, mayor)
@@ -884,6 +914,8 @@ class AplicacionGrafo(tk.Tk):
             f"Componente mayor ({len(mayor)} nodos) "
             f"{'ES' if es_bip else 'NO ES'} BIPARTITA", tipo
         )
+
+        ##    Aquí se muestra el resultado en un MessageBox
         messagebox.showinfo(
             "Análisis Bipartito",
             f"Componente más grande: {len(mayor)} aeropuertos\n\n"
@@ -894,33 +926,54 @@ class AplicacionGrafo(tk.Tk):
         )
 
     def _calcular_mst(self):
+        ##    Este metodo realiza las operaciones lógicas necesarias para
+        ##    identificar el Arbol de Expansión Minima (Minimun Spanning Tree)
+        ##    del grafo de rutas y su peso (la distancia total recorrida).
+        
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
             return
         self._log("Calculando MST con Kruskal (puede tardar)...")
         self.update()
+
+        ##    Aquí se empiezan a llamar los metodos de la clase GrafoAnalizador
+
         grafo_d    = self.grafo.to_dict_grafo()
         aristas    = self.grafo.obtener_aristas()
         resultados = self.analizador.mst_por_componente(grafo_d, aristas)
         peso_total = sum(r['peso_mst'] for r in resultados)
+
         self._log(
             f"MST calculado: {len(resultados)} componentes — "
             f"Peso total: {peso_total:,.1f} km", "exito"
         )
+
+        ##    Una vez se hayan obtenido los resultados, se muestra en una ventana aparte.
+
         VentanaMST(self, resultados)
 
     def _top_hubs(self):
+        ##    Aquí se lleva el proceso de medir y enlistar los 10
+        ##    aeropuertos con más rutas directas.
+
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
             return
+        
         top = sorted(self.grafo.vertices,
                      key=lambda a: self.grafo.grado(a.code),
                      reverse=True)[:10]
         self._log("Top 10 hubs:")
+
         for a in top:
             self._log(f"  {a.code}: {self.grafo.grado(a.code)} rutas — {a.city}")
+
+        ##    Se crea una ventana donde se muestran los 10 aeropuertos.
+
         VentanaResultados(self, self.grafo, top, "Top 10 Hubs (más rutas directas)")
-        # Marcamos los hubs en el mapa
+
+        ##    Marcamos los hubs en el mapa
+
         self.mapa.mostrar_aeropuertos(top)
 
     def _mostrar_todos(self):
@@ -930,10 +983,9 @@ class AplicacionGrafo(tk.Tk):
         VentanaResultados(self, self.grafo, self.grafo.vertices, "Todos los Aeropuertos")
 
     def _calcular_camino(self):
-        """
-        Ejecuta Dijkstra desde el origen, reconstruye el camino hasta
-        el destino y lo muestra sobre el mapa con una línea azul.
-        """
+        ##    Ejecuta Dijkstra desde el origen, reconstruye el camino hasta
+        ##    el destino y lo muestra sobre el mapa con una línea azul.
+        
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
             return
@@ -983,10 +1035,13 @@ class AplicacionGrafo(tk.Tk):
         VentanaCamino(self, self.grafo, camino, distancia_total)
 
     def _recalcular_componentes(self):
-        """Recalcula las componentes conexas y las ordena por tamaño."""
+        ##    Recalcula las componentes conexas y las ordena por tamaño.
+
         grafo_dict = self.grafo.to_dict_grafo()
+
         _, _, _, comps = self.analizador.es_conexo(grafo_dict)
         comps.sort(key=len, reverse=True)
+
         self._componentes = comps
         self._comp_idx    = 0
         self._comp_dict   = {
@@ -996,6 +1051,7 @@ class AplicacionGrafo(tk.Tk):
         }
 
     def _acerca_de(self):
+        ##    Muestra la información acerca de la aplicación (laboratiorio).
         messagebox.showinfo(
             "Acerca de",
             "Laboratorio 2 - Estructura de Datos II\n"

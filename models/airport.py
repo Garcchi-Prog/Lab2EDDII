@@ -1,5 +1,5 @@
 class Airport:
-    ## Representa un aeropuerto con su información de identificación y posición.
+    ##    Representa un aeropuerto con su información de identificación y posición.
 
     def __init__(self, code, name, city, country, lat, lon):
         self.code    = code
@@ -9,7 +9,8 @@ class Airport:
         self.lat     = float(lat)
         self.lon     = float(lon)
 
-    ## Esta función define la forma "oficial" en String a la que el codigo debe
-    ## referirse al imprimir un aeropuerto.
+    ##    Esta función define la forma "oficial" en String a la que el codigo debe
+    ##    referirse al imprimir un aeropuerto.
+    
     def __repr__(self):
         return f"{self.code} ({self.city}, {self.country})"
