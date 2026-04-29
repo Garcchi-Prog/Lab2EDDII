@@ -756,13 +756,13 @@ class AplicacionGrafo(tk.Tk):
     # ── Acciones de mapa ──────────────────────────────────────────────────────
     def _mostrar_todos_en_mapa(self):
         ## Coloca un pin por cada aeropuerto del grafo
+        global default_pin
         try:
             pins = int(self.entry_pines.get().strip())
+            default_pin = min(pins, 300)   # maximo permitido: 300
         except ValueError:
-            pins = 300
-        
-        default_pin = pins
-        
+            default_pin = 300
+
         if not self.grafo.vertices:
             self._log("Cargue un dataset primero", "error")
             return
